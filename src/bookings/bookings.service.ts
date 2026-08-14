@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { seatRow, VIP_ROWS, isValidSeatId } from '../common/seat-layout';
+import { Movie } from '../movies/schemas/movie.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { Booking, BookingDocument } from './schemas/booking.schema';
@@ -18,6 +19,7 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
     @InjectModel(Showtime.name) private readonly showtimeModel: Model<Showtime>,
+    @InjectModel(Movie.name) private readonly movieModel: Model<Movie>,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<BookingDocument> {
@@ -60,6 +62,27 @@ export class BookingsService {
       throw new NotFoundException(`Booking ${id} not found`);
     }
     return booking;
+  }
+
+  /** Resolves a booking by its public tracking code, enriched with showtime + movie. */
+  async trackByReferenceCode(code: string) {
+    const referenceCode = code.trim().toUpperCase();
+    const booking = await this.bookingModel.findOne({ referenceCode }).exec();
+    if (!booking) {
+      throw new NotFoundException(`No booking found for code ${referenceCode}`);
+    }
+
+    const showtime = await this.showtimeModel.findById(booking.showtimeId).exec();
+    if (!showtime) {
+      throw new NotFoundException(`Showtime ${booking.showtimeId} not found`);
+    }
+
+    const movie = await this.movieModel.findById(showtime.movieId).exec();
+    if (!movie) {
+      throw new NotFoundException(`Movie ${showtime.movieId} not found`);
+    }
+
+    return { booking, showtime, movie };
   }
 
   async confirm(id: string): Promise<BookingDocument> {

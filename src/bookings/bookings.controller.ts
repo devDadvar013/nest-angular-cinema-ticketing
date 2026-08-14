@@ -11,6 +11,12 @@ export class BookingsController {
     return this.bookingsService.create(dto);
   }
 
+  /** Public ticket lookup by tracking code, e.g. CT-ABC123. */
+  @Get('track/:code')
+  track(@Param('code') code: string) {
+    return this.bookingsService.trackByReferenceCode(code);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.bookingsService.findOne(id);
